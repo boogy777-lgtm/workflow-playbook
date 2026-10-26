@@ -2,36 +2,61 @@
 
 A repeatable workflow for carrying a long project across many sessions without losing state, quality, or trust. It is written as binding rules for an AI assistant model, so it works with any model that will follow instructions.
 
+## Автономная работа команды
+
+Workflow усилен протоколом [автономной команды](./autonomous-team.md), адаптированным по открытым правилам CADCraft из семейства ArtCraft. Внутри активной сессии координатор сам выбирает готовые задачи, распределяет независимые изменения, организует ревью, проверяет интеграцию и продолжает работу до согласованной границы поставки.
+
+Для запуска дайте агенту задачу и этот запрос:
+
+```text
+Прочитай workflow-playbook.md и autonomous-team.md.
+Работай автономной командой в указанном репозитории.
+Зафиксируй цель, критерии завершения и границы полномочий.
+Сам выбирай следующие готовые задачи и продолжай до проверенного результата.
+Распределяй только независимые задачи с непересекающимися областями записи.
+Проверяй результат отдельным ревьюером и на итоговой интегрированной ревизии.
+Заверши подготовкой PR; слияние и релиз в эту задачу не входят.
+Не запрашивай повторно уже данное разрешение.
+Отдельно укажи проверки, которые требуют моего ПК или контроллера.
+```
+
+Если слияние уже разрешено пользователем, команда использует это разрешение после обязательных проверок. Строку о границе PR в стартовом запросе заменяют нужной границей поставки. Режим `guided` сохраняется для работы с подтверждением каждого шага по явной просьбе пользователя.
+
+Это набор инструкций, а не установленный круглосуточный исполнитель. Без активного хоста агента работа не продолжается. Если субагенты недоступны, агент раскрывает ограничение и работает последовательно; независимое ревью остаётся отдельным условием или заранее согласованным исключением.
+
 ## TL;DR
 
 Run every long project through five phases, backed by sixteen ground rules, with a small set of files on disk that let any new session pick up where the last one left off.
 
-The core idea: the assistant never trusts its own memory, its own checks, or the user's "looks good" as proof. Evidence closes a claim (a check ran and passed). The user closing a task in their own environment closes the work. Neither replaces the other. Everything worth remembering goes into files outside the chat, so context compaction, a crashed session, or a brand-new model can all cold-start from the folder alone.
+The core idea: reproducible evidence closes technical work; target acceptance is tracked separately when it needs the user's equipment or judgment. The assistant reads durable project records instead of relying on chat memory. Autonomous work continues inside the user's authorization, while guided work stops at the requested approval boundaries.
 
 Five phases:
 
 1. **Locate.** Decide where the project lives, on storage that outlives any single session or virtual machine.
-2. **Align.** Read-only recon, save all starting material, research before assuming, ask questions in batches, and capture requirements. End only when you can restate the goal and success criteria and the user confirms.
-3. **Plan.** Small isolated tasks in `todo.md`, each with a defined way to prove it done, ordered by dependencies and effort, with the thinnest thing that works end to end (the MVP) as the first milestone rather than the most interesting feature. Confirm the list and its order with the user before building.
-4. **Build.** Repeat per task: read the current state, back up what you touch, make a surgical change, run the scripts, get user confirmation, log the round. Independent threads fan out to multiple subagents working in parallel, each confined to its own exclusive set of files so they never collide. A red check triggers a failure procedure capped at two retries, each requiring a stated root cause.
+2. **Align.** Read-only recon, save all starting material, research before assuming, ask questions in batches, and capture requirements. Record the goal, constraints, success criteria and delivery boundary; ask only about material gaps.
+3. **Plan.** Small isolated tasks in `todo.md`, each with a defined way to prove it done, ordered by dependencies and effort, with the thinnest thing that works end to end (the MVP) as the first milestone rather than the most interesting feature. State the plan and proceed within existing authorization; obtain step approvals only in guided mode.
+4. **Build.** Repeat per task: read the current state, back up what you touch, make a surgical change, run the checks, obtain required review, verify integration and log the round. Independent threads fan out to multiple subagents working in parallel, each confined to its own exclusive set of files so they never collide. A red check blocks the affected task and its dependents. Two diagnosed retries precede a fresh diagnosis; unrelated work continues.
 5. **Close.** Walk the archive, run the full regression suite, check the result against the recorded success criteria item by item, and write the closing log entry.
 
-Sixteen ground rules cover the rest: backups before edits, deferred deletions, secrets out of everything, one current version per file, logging every round, fanning work out to multiple parallel subagents in exclusive file lanes so no two touch the same thing, handoff on observable degradation, verification over assumption, plain-language narration, explicit silence and failure handling, single-writer discipline, interpreting an interruption before acting on it, keeping summaries faithful to idea boundaries so distinct claims never get mashed into one line, and decomposing any big request into small todo-list steps before building, so nothing is attempted as one monolith that fills the context window and breaks halfway. The sixteenth rule governs the writing itself: every reply comes out clear, cohesive, concise and conclusive, with no redundancy or repetition, in a natural voice free of unusual vocabulary or punctuation such as em dashes, and the playbook holds its own files to the same lean, token-aware standard.
+Sixteen ground rules cover the rest: backups before edits, recoverable source changes and authorized data deletion, secrets out of everything, one current version per file, logging every round, fanning work out to multiple parallel subagents in exclusive file lanes so no two touch the same thing, checkpoint and recovery on observable degradation, verification over assumption, plain-language narration, explicit silence and failure handling, one writer per file, incorporating user steering, keeping summaries faithful to idea boundaries so distinct claims never get mashed into one line, and decomposing any big request into small todo-list steps before building, so nothing is attempted as one monolith that fills the context window and breaks halfway. The sixteenth rule governs the writing itself: every reply comes out clear, cohesive, concise and conclusive, with no redundancy or repetition, in a natural voice free of unusual vocabulary or punctuation such as em dashes, and the playbook holds its own files to the same lean, token-aware standard.
 
 The self-improving part is `LEARNINGS.md`. Every error that cost more than one attempt, every loop the user pointed out, and every corrected wrong assumption gets promoted there as a short standalone entry, and architectural decisions are recorded with the alternatives they rejected, so a new session neither repeats the mistakes nor re-litigates the settled choices. A new session reads it before the milestone log, so each round's mistakes become the next round's guardrails. Bigger projects can add their own reference docs (data model, behavior contracts, coding conventions), each labelled with when to read it, and may run one chat per feature — the folder is always the memory.
 
 ## Files
 
-- [`workflow-playbook.md`](./workflow-playbook.md) — the playbook itself. Copy it into the project folder as `PLAYBOOK.md` and let it govern every step.
+- [`workflow-playbook.md`](./workflow-playbook.md) — the core policy. Copy it into a consuming project as `PLAYBOOK.md`, together with `autonomous-team.md` and `checks/`.
+- [`autonomous-team.md`](./autonomous-team.md) — roles, task contracts, dependency scheduling, write ownership, review, integration and recovery.
+- [`AGENTS.md`](./AGENTS.md) — bootstrap for maintaining this repository; consuming projects keep their own compatible bootstrap.
+- [`.github/workflows/checks.yml`](./.github/workflows/checks.yml) — PR and main-branch checks for the scanner and its Bash/PowerShell regressions; it runs no LLM agents.
 - [`checks/`](./checks/) — a universal pre-publish secret scanner (Betterleaks wrappers plus project-specific rules). This is the security gate at the publish boundary; behavior regression tests are a separate thing and live in each project's `TESTS/` folder. The wrappers install and update Betterleaks themselves; you never handle the binary. Run it before anything goes public; its exit code is the gate. See [`checks/README.md`](./checks/README.md).
 - `.env` — where real credentials live during a project: one untracked file of `NAME=value` lines that the assistant reads when it needs a secret and refers to only by variable name. You are never asked to paste a token into chat. Covered by `.gitignore`, caught by the scanner if it ever slips elsewhere.
 - This README — the short version, for humans skimming the repo.
-- [`instructions-template.md`](./instructions-template.md) — three lines to paste into a Thaura project's Instructions field, so every chat inside that project auto-starts under the playbook. Copy-paste, nothing to write.
+- [`instructions-template.md`](./instructions-template.md) — a bootstrap for the host's project instructions, with execution mode and delivery boundary.
 - [`.env.example`](./.env.example) — the secrets template. Copied to `.env` at project creation; you fill the values in yourself and the assistant references them by variable name only.
 
 ## Installation
 
-There is nothing to build or install in the usual sense. The playbook is a document the model reads and follows. Pick the route that matches your setup.
+There is nothing to build or install in the usual sense. The documents guide the active host assistant. Parallelism requires actual subagent support; unattended operation requires a separately configured runner. Pick the route that matches your setup.
 
 ### In Thaura AI
 
@@ -51,19 +76,32 @@ The skill is opt-in, so it loads only when you explicitly ask for it and never i
 
 Give the model the file as its first instruction. Three options, easiest first:
 
-1. Paste the full text of `workflow-playbook.md` into the opening message of the chat, prefaced with "Follow these rules for the duration of this project."
-2. Save `workflow-playbook.md` into the project folder as `PLAYBOOK.md` and tell the model: "Read PLAYBOOK.md before doing anything else, and follow it."
-3. Add the file's contents to your system prompt or standing instructions if your tool supports them.
+1. Supply `workflow-playbook.md` and `autonomous-team.md` in the opening message, prefaced with "Follow these rules for the duration of this project." Supply `checks/` before any publication.
+2. Copy `workflow-playbook.md` as `PLAYBOOK.md`, plus `autonomous-team.md` and `checks/`, into the project folder. Tell the model to read PLAYBOOK.md and follow the recorded execution contract. Preserve local project rules and record the source revision.
+3. Put the bootstrap from `instructions-template.md` in your host's project instructions if supported; keep the canonical files in the project folder.
 
 After installation, invoke it once at the start of a long project and let it run. You do not need to re-invoke it in each prompt.
 
 ### Resuming mid-project
 
-If a session starts mid-project, its first act is to read the canonical cold-start list from the project folder: `PLAYBOOK.md`, `LEARNINGS.md`, `REQUIREMENTS.md`, `MILESTONES.md`, `todo.md`. The project folder makes this self-service: it ships with an `AGENTS.md` bootstrap that tells any assistant opening the folder to read `PLAYBOOK.md` first, so startup never depends on a single app feature (a loaded skill, a project, an instructions field). After any context compaction within a session, do the same, because compaction summarizes prior turns but does not re-open documents on disk.
+If a session starts mid-project, its first act is to read the canonical cold-start list from the project folder: `PLAYBOOK.md`, `LEARNINGS.md`, `REQUIREMENTS.md`, `MILESTONES.md`, `todo.md`. The project folder makes this self-service: it ships with an `AGENTS.md` bootstrap that tells any assistant opening the folder to read `PLAYBOOK.md` first, so startup never depends on a single app feature (a loaded skill, a project, an instructions field). Read `autonomous-team.md` before dispatching agents. After context compaction, reconcile that record with live workers, Git changes and completed external operations before continuing.
 
 ## Changelog
 
 Every change to this repo — playbook rules, checker scripts, or docs — gets a dated entry appended here, newest first. One plain sentence per change.
+
+### 2026-10-27
+
+- Added autonomous and guided modes with an explicit delivery boundary and persistent authorization.
+- Separated technical completion from acceptance on the user's equipment.
+- Added the autonomous team protocol with task dependencies, exclusive write ownership, independent review, integration gates and recovery.
+- Added PLATFORM ARCHITECTURE RULES v3.1 to the task contract.
+- Replaced mandatory per-step confirmations and a fixed minimum team size with decisions based on authorization and independent ready work.
+- Added repository bootstrap and updated installation and project instruction templates.
+- Documented the public CADCraft source and the unavailable private protocol instead of attributing invented details to ArtCraft.
+- Fixed the secret gate to scan uncommitted files and history across all refs, redact matches and reject nonexistent targets.
+- Added fixture regressions for clean, untracked, staged, modified, historical, other-ref and non-Git inputs.
+- Added GitHub Actions checks with read-only repository access and a pinned checkout action.
 
 ### 2026-10-23
 
@@ -117,3 +155,4 @@ Every change to this repo — playbook rules, checker scripts, or docs — gets 
 ### 2026-10-06
 
 - Initial playbook: five phases (Locate, Align, Plan, Build, Close) with ground rules and a file layout so any new session cold-starts from the project folder alone.
+

@@ -1,0 +1,35 @@
+name: Workflow checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workflow-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate shell syntax and whitespace
+        run: |
+          bash -n checks/run-secret-check.sh TESTS/test-secret-check.sh
+          git diff --check HEAD^ HEAD
+      - name: Scan working files and all available Git refs
+        run: bash checks/run-secret-check.sh .
+      - name: Run Bash and PowerShell wrapper regressions
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          bash TESTS/test-secret-check.sh
+          bash TESTS/test-secret-check.sh powershell
