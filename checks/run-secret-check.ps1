@@ -13,6 +13,10 @@
 
 param([string]$Target = ".")
 $ErrorActionPreference = "Stop"
+if (-not (Test-Path -LiteralPath $Target -PathType Container)) {
+    Write-Host "ERROR: target is not an existing directory: $Target" -ForegroundColor Red
+    exit 2
+}
 
 $LocalDir = Join-Path $env:LOCALAPPDATA "betterleaks"
 
@@ -148,24 +152,36 @@ Write-Host "Scanning '$Target' for secrets (working tree + git history)..." -For
 # Betterleaks logs to stderr; Windows PowerShell turns stderr into terminating
 # errors under $ErrorActionPreference = Stop. Relax it for the scan only: the
 # scan's exit code is the gate, not its log lines.
-$ErrorActionPreference = "Continue"
-$isGitRepo = & git -C $Target rev-parse --is-inside-work-tree 2>$null
-if ($LASTEXITCODE -eq 0) {
-    & $Bin git @configArgs --no-banner --verbose --exit-code 1 "$Target"
-} else {
-    & $Bin dir @configArgs --no-banner --verbose --exit-code 1 "$Target"
+$previousPreference = $ErrorActionPreference
+$code = 2
+try {
+    $ErrorActionPreference = "Continue"
+    # Git history alone misses untracked and uncommitted work. Scan both inputs.
+    # Redact matches so failed scans do not expose credentials in CI/chat logs.
+    & $Bin dir @configArgs --no-banner --redact=100 --exit-code 1 "$Target"
+    $code = $LASTEXITCODE
+    $isGitRepo = & git -C $Target rev-parse --is-inside-work-tree 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        & $Bin git @configArgs --log-opts=--all --no-banner --redact=100 --exit-code 1 "$Target"
+        $historyCode = $LASTEXITCODE
+        if ($historyCode -ne 0 -and ($code -eq 0 -or $historyCode -ne 1)) {
+            $code = $historyCode
+        }
+    }
+} finally {
+    $ErrorActionPreference = $previousPreference
+    if ($merged) { Remove-Item -LiteralPath $merged -ErrorAction SilentlyContinue }
 }
-$code = $LASTEXITCODE
-$ErrorActionPreference = "Stop"
-if ($merged) { Remove-Item -LiteralPath $merged -ErrorAction SilentlyContinue }
 
 if ($code -eq 0) {
     Write-Host ""
     Write-Host "CLEAN: no secrets detected." -ForegroundColor Green
-} else {
+} elseif ($code -eq 1) {
     Write-Host ""
     Write-Host "FOUND SECRETS. Do not publish until every hit above is reviewed." -ForegroundColor Red
     Write-Host "For each hit: confirm whether it is real. Rotate the credential if it was ever exposed," -ForegroundColor Yellow
     Write-Host "then remove it from the file AND from git history (git filter-repo / BFG)." -ForegroundColor Yellow
+} else {
+    Write-Host "ERROR: secret scan did not complete successfully (exit $code). Do not publish." -ForegroundColor Red
 }
 exit $code

@@ -6,7 +6,7 @@ Cross-platform: the same Betterleaks binary works on Windows, macOS, and Linux. 
 
 ## What it does
 
-It runs [Betterleaks](https://github.com/betterleaks/betterleaks) over a target folder, scanning both the working tree and the full git history (a secret that was committed once and then deleted is still in history and will be found). Betterleaks is the drop-in successor to Gitleaks from the same author: it ships a large built-in rule set covering API keys, tokens, passwords, cloud credentials, and more, and it catches doubly and triply encoded secrets that older scanners miss. On top of those, it loads `betterleaks-extra.toml` from this folder so you can add project-specific patterns: an internal hostname, a reverse-proxy domain, a machine name, a personal identifier that must never ship.
+It runs [Betterleaks](https://github.com/betterleaks/betterleaks) over a target folder, running a directory scan of current files followed by a Git scan across all refs (`--log-opts=--all`), covering both the working tree and the full available git history (a secret that was committed once and then deleted is still in history and will be found). Betterleaks is the drop-in successor to Gitleaks from the same author: it ships a large built-in rule set covering API keys, tokens, passwords, cloud credentials, and more, and it catches doubly and triply encoded secrets that older scanners miss. On top of those, it loads `betterleaks-extra.toml` from this folder so you can add project-specific patterns: an internal hostname, a reverse-proxy domain, a machine name, a personal identifier that must never ship.
 
 ## Installing and updating Betterleaks
 
@@ -28,7 +28,9 @@ macOS / Linux (bash or zsh):
 ./run-secret-check.sh /path/to/repo
 ```
 
-Exit code `0` means clean and safe to publish. Any other exit code means it found something; read the hits, confirm each one, rotate any credential that was ever exposed, and remove it from the file and from git history before publishing again.
+Exit code `0` means neither scan reported a finding or an execution error. Exit code `1` means a finding needs review. Other nonzero codes mean the scan did not complete successfully. Every nonzero result blocks publication. A nonexistent target is an error, never a clean scan. Matches are redacted from scanner output.
+
+The directory pass includes untracked, staged and unstaged content subject to scanner exclusions. The history pass includes every locally available ref, not just HEAD. Fetch the intended remote refs and full history before scanning a shallow or partial checkout; the wrapper cannot scan commits that are absent locally. An intentional local `.env` may be flagged by the directory scan: review the publication set and narrow exclusions deliberately rather than disabling the gate or exposing its values.
 
 ## Adding a project-specific rule
 
@@ -49,3 +51,16 @@ The scanner reads whole files, so a pattern using `\s` can match across line bre
 ## How it fits the playbook
 
 Ground Rule 4 says secrets stay out of code, files, logs, repos, and chat output. This script is the mechanical enforcement of that rule at the publish boundary. In Phase 3, run it before any step that pushes to a remote or exposes a file externally. In Phase 4, run it across the whole project as part of the final regression pass. A red result blocks the publish until resolved, exactly like any other failing check.
+
+
+## Regression checks
+
+Run from the repository root with Bash, Git and Betterleaks on PATH:
+
+```sh
+bash TESTS/test-secret-check.sh
+# Also needs PowerShell 7 on PATH; exercises the PowerShell wrapper with the same fixtures.
+bash TESTS/test-secret-check.sh powershell
+```
+
+The suite uses a synthetic marker, temporary local repositories and the real installed scanner. Update metadata is deliberately unavailable, so tests make no network calls. It checks that uncommitted files, removed historical matches and matches on another ref all block the gate, that a missing target fails, and that output hides the matched value. No real credentials are used. The shell harness is needed for both modes; running the PowerShell wrapper on Linux does not prove Windows-specific installation behavior.

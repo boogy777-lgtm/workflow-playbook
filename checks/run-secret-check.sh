@@ -15,6 +15,10 @@
 set -u
 
 TARGET="${1:-.}"
+if [ ! -d "$TARGET" ]; then
+    echo "ERROR: target is not an existing directory: $TARGET" >&2
+    exit 2
+fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EXTRA_CONFIG="$SCRIPT_DIR/betterleaks-extra.toml"
 PRIVATE_CONFIG="$SCRIPT_DIR/scan-private.toml"   # untracked; holds personal identifiers
@@ -173,20 +177,28 @@ fi
 
 echo "Scanning '$TARGET' for secrets (working tree + git history)..."
 
-if git -C "$TARGET" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    "$BIN" git "${CONFIG_FLAG[@]}" --no-banner --verbose --exit-code 1 "$TARGET"
-else
-    "$BIN" dir "${CONFIG_FLAG[@]}" --no-banner --verbose --exit-code 1 "$TARGET"
-fi
+# git mode scans commits, not untracked files or uncommitted edits. Always scan
+# the actual directory, then all Git refs, keeping a failure from either pass.
+# Redaction prevents a failed gate from copying credentials into build logs.
+"$BIN" dir "${CONFIG_FLAG[@]}" --no-banner --redact=100 --exit-code 1 "$TARGET"
 code=$?
+if git -C "$TARGET" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    "$BIN" git "${CONFIG_FLAG[@]}" --log-opts=--all --no-banner --redact=100 --exit-code 1 "$TARGET"
+    history_code=$?
+    if [ "$history_code" -ne 0 ] && { [ "$code" -eq 0 ] || [ "$history_code" -ne 1 ]; }; then
+        code="$history_code"
+    fi
+fi
 
 if [ "$code" -eq 0 ]; then
     echo ""
     echo "CLEAN: no secrets detected."
-else
+elif [ "$code" -eq 1 ]; then
     echo ""
     echo "FOUND SECRETS. Do not publish until every hit above is reviewed."
     echo "For each hit: confirm whether it is real. Rotate the credential if it was ever exposed,"
     echo "then remove it from the file AND from git history (git filter-repo / BFG)."
+else
+    echo "ERROR: secret scan did not complete successfully (exit $code). Do not publish." >&2
 fi
 exit "$code"
