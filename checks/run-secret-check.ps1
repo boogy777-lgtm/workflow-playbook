@@ -185,4 +185,3 @@ if ($code -eq 0) {
     Write-Host "ERROR: secret scan did not complete successfully (exit $code). Do not publish." -ForegroundColor Red
 }
 exit $code
-

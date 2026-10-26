@@ -155,4 +155,3 @@ Every change to this repo — playbook rules, checker scripts, or docs — gets 
 ### 2026-10-06
 
 - Initial playbook: five phases (Locate, Align, Plan, Build, Close) with ground rules and a file layout so any new session cold-starts from the project folder alone.
-

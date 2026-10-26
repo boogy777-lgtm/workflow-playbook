@@ -202,4 +202,3 @@ else
     echo "ERROR: secret scan did not complete successfully (exit $code). Do not publish." >&2
 fi
 exit "$code"
-
