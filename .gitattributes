@@ -1,0 +1,7 @@
+# Normalize line endings so every clone gets runnable scripts regardless of
+# the cloner's git settings (a CRLF shell script fails on macOS/Linux).
+* text=auto
+*.sh text eol=lf
+*.toml text eol=lf
+*.md text
+*.ps1 text

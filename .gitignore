@@ -1,0 +1,13 @@
+# Private scanner config: carries real machine names, domains, and IPs.
+# Never commit it; see checks/README.md.
+checks/scan-private.toml
+
+# Local secrets file (Ground Rule 4): NAME=value lines stay on this machine only.
+.env
+.env.*
+!.env.example
+
+# Scratch and backup artifacts defined by the playbook
+BACKUPS/
+ARCHIVE/
+*.bak-pre*

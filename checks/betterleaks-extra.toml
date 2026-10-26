@@ -1,0 +1,39 @@
+# Extra secret rules for the pre-publish checker.
+# Loaded together with Betterleaks' built-in rules by run-secret-check.ps1 / .sh.
+# Add any project-specific pattern here: a hostname, an internal URL scheme,
+# a personal identifier that must never ship. Keep each rule narrow so it
+# does not flag legitimate content.
+
+title = "Project-specific secret rules"
+
+# Load Betterleaks' full built-in rule set ALONGSIDE these rules. Without this
+# block, --config replaces the defaults and the built-in detectors are silently
+# switched off. Keep it.
+[extend]
+useDefault = true
+
+# Example 1: block an internal hostname or domain that reveals infrastructure.
+# Replace the placeholder with your own value, then uncomment before publishing.
+# [[rules]]
+# id = "internal-hostname"
+# description = "Internal hostname must not be published"
+# regex = '''\bexample-internal\.local\b'''
+# tags = ["infrastructure", "hostname"]
+
+# Example 2: block a machine or account name tied to the owner.
+# Replace the placeholder with your own value, then uncomment before publishing.
+# [[rules]]
+# id = "owner-machine-name"
+# description = "Owner machine name leaked"
+# regex = '''MY-MACHINE-NAME'''
+# tags = ["pii", "machine"]
+
+# Example 3: block a specific IP address that reveals internal infrastructure.
+# Replace the placeholder with your own value, then uncomment before publishing.
+# Note: a blanket IPv4 rule flags legitimate public IPs and version strings, so
+# list only the specific addresses you must keep private rather than all of them.
+# [[rules]]
+# id = "private-ip"
+# description = "Private or internal IP address leaked"
+# regex = '''\b10\.0\.0\.5\b'''
+# tags = ["infrastructure", "ip"]
